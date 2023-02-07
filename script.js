@@ -1,4 +1,5 @@
 const container = document.getElementById("container");
+const modifyGrid = document.getElementById("modifyGrid");
 
 function makeRows(rows, cols) {
     container.style.setProperty('--grid-rows', rows);
@@ -13,5 +14,16 @@ function makeRows(rows, cols) {
     }
 }
 
-
 makeRows(16, 16);
+
+modifyGrid.addEventListener("click", function() {
+    let rows = prompt("Enter the amount of rows: ");
+    let cols = prompt("Enter the amount of columns: ");
+
+    const elements = document.getElementsByClassName("grid-item");
+    while(elements.length > 0) {
+        elements[0].parentNode.removeChild(elements[0]);
+    }
+
+    makeRows(rows, cols);
+})

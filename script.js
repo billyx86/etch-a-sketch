@@ -29,4 +29,8 @@ modifyGrid.addEventListener("click", function() {
     }
 })
 
+function randomColor() {
+    chosenColor = `hsl(${Math.random() * 360}, 100%, 50%)`
+}
+
 makeRows(16, 16);

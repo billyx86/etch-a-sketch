@@ -4,12 +4,20 @@
 }
 
 body {
-    background-color: gray;
+    background-color: black;
+    color: white; /* Fallback for older browsers */
+    color: rgb(255, 255, 255, 0.88);
+    font-family: Georgia, Arial, sans-serif;
 }
 
 .upper-body {
     margin: 5vh;
     font-size: 48px;
+}
+
+.grid {
+    border-width: 10px;
+    border-style: solid;
 }
 
 .flex-container {
@@ -22,11 +30,14 @@ body {
 
 .tool-button {
     border-width: thick;
-    border-color: black;
+    border-color: white;
+    border-color: rgb(255, 255, 255, 0.88);
+    border-style: solid;
     border-radius: 20%;
     height: 100px;
     width: 100px;
     background-size: cover;
+    background-color:black;
 }
 
 .tool-button:active {
@@ -42,7 +53,6 @@ body {
     background-image: url(icons8-erase.svg);
 }
 
-
 .grid {
     display: grid;
     grid-template-rows: repeat(var(--grid-rows), 1fr);
@@ -51,4 +61,12 @@ body {
     max-width: 600px;
     height: 600px;
     max-height: 600px;
+}
+
+#modify-grid {
+    margin-top: 8px;
+}
+
+#grid-size-text {
+    margin-bottom: 8px;
 }

@@ -1,10 +1,12 @@
 const container = document.querySelector(".grid");
-const modifyGrid = document.getElementById("modifyGrid");
+const modifyGrid = document.getElementById("modify-grid");
+const gridSizeText = document.getElementById("grid-size-text");
 let chosenColor = "black";
 
 function makeRows(gridSize) {
     container.style.setProperty('--grid-rows', gridSize);
     container.style.setProperty('--grid-cols', gridSize);
+    updateGridSizeText();
 
     for (i = 0; i < (gridSize * gridSize); i++) {
         let cell = document.createElement("div");
@@ -16,8 +18,13 @@ function makeRows(gridSize) {
     }
 }
 
+
+function updateGridSizeText() {
+    gridSizeText.textContent = `${modifyGrid.value}x${modifyGrid.value}`
+}
+
 modifyGrid.addEventListener("click", function() {
-    let gridSize = prompt("Enter the amount of rows: ");
+    let gridSize = modifyGrid.value;
     if (gridSize > 0 && gridSize <= 150) {
         const elements = document.getElementsByClassName("grid-item");
         while(elements.length > 0) {
@@ -28,9 +35,5 @@ modifyGrid.addEventListener("click", function() {
         alert("Input specified must be an integer between 1-150.")
     }
 })
-
-function randomColor() {
-    chosenColor = `hsl(${Math.random() * 360}, 100%, 50%)`
-}
 
 makeRows(16, 16);

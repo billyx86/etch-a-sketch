@@ -36,4 +36,4 @@ modifyGrid.addEventListener("click", function() {
     }
 })
 
-makeRows(16, 16);
+makeRows(16);

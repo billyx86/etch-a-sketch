@@ -8,15 +8,17 @@
   </head>
   <body>
     <div class="flex-container">
-      <h1>Etch-a-Sketch</h1>
-      <div class="buttons">
-        <input id="modify-grid" type="range" min="2" max="150">
-        <p id="grid-size-text"></p>
-        <button onclick='chosenColor = "black"'>Black</button>
-        <button onclick='chosenColor = "white"'>Eraser</button>
+      <div class="upper-body">
+        <h1>Etch-a-Sketch</h1>
       </div>
       <div class="content">
         <div class="grid"></div>
+      </div>
+      <div class="buttons">
+        <input id="modify-grid" type="range" min="2" max="150" value="16">
+        <p id="grid-size-text"></p>
+        <button class="tool-button black" onclick='chosenColor = "black"'></button>
+        <button class="tool-button white" onclick='chosenColor = "white"'></button>
       </div>
     </div>
   </body>

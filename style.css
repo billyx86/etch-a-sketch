@@ -7,12 +7,41 @@ body {
     background-color: gray;
 }
 
+.upper-body {
+    margin: 5vh;
+    font-size: 48px;
+}
+
 .flex-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    text-align: center;
 }
+
+.tool-button {
+    border-width: thick;
+    border-color: black;
+    border-radius: 20%;
+    height: 100px;
+    width: 100px;
+    background-size: cover;
+}
+
+.tool-button:active {
+    background-color: white;
+}
+
+
+.black {
+    background-image: url(icons8-crayon.svg);
+}
+
+.white {
+    background-image: url(icons8-erase.svg);
+}
+
 
 .grid {
     display: grid;

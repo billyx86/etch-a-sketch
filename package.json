@@ -1,0 +1,11 @@
+{
+  "name": "etch-a-sketch",
+  "version": "1.0.0",
+  "description": "A browser version of an etch-a-sketch.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test lib.test.js"
+  },
+  "license": "MIT"
+}

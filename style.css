@@ -18,6 +18,13 @@ body {
 .grid {
     border-width: 10px;
     border-style: solid;
+    display: grid;
+    grid-template-rows: repeat(var(--grid-rows), 1fr);
+    grid-template-columns: repeat(var(--grid-cols), 1fr);
+    width: 600px;
+    max-width: 600px;
+    height: 600px;
+    max-height: 600px;
 }
 
 .flex-container {
@@ -53,14 +60,8 @@ body {
     background-image: url(icons8-erase.svg);
 }
 
-.grid {
-    display: grid;
-    grid-template-rows: repeat(var(--grid-rows), 1fr);
-    grid-template-columns: repeat(var(--grid-cols), 1fr);
-    width: 600px;
-    max-width: 600px;
-    height: 600px;
-    max-height: 600px;
+.random {
+    background-image: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
 }
 
 #modify-grid {
@@ -69,4 +70,21 @@ body {
 
 #grid-size-text {
     margin-bottom: 8px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.grid:focus-visible {
+    outline: 2px solid #40c4ff;
+    outline-offset: 2px;
 }

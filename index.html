@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <title>Etch-A-Sketch Project</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Draw on a grid with mouse, touch or keyboard - a browser etch-a-sketch.">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="reset.css">
   </head>
@@ -12,15 +14,18 @@
         <h1>Etch-a-Sketch</h1>
       </div>
       <div class="content">
-        <div class="grid"></div>
+        <div class="grid" tabindex="0" role="application"
+     aria-label="Drawing grid. Use the arrow keys to move and Space or Enter to paint."></div>
       </div>
       <div class="buttons">
-        <input id="modify-grid" type="range" min="2" max="150" value="16">
-        <p id="grid-size-text"></p>
-        <button class="tool-button black" onclick='chosenColor = "black"'></button>
-        <button class="tool-button white" onclick='chosenColor = "white"'></button>
+        <label class="visually-hidden" for="modify-grid">Grid size (1-150)</label>
+        <input id="modify-grid" type="range" min="1" max="150" value="16" aria-describedby="grid-size-text">
+        <p id="grid-size-text" aria-live="polite"></p>
+        <button class="tool-button black" data-tool="black" aria-label="Black pen"></button>
+        <button class="tool-button white" data-tool="white" aria-label="Eraser"></button>
+        <button class="tool-button random" data-tool="random" aria-label="Random Colour"></button>
       </div>
     </div>
   </body>
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </html>

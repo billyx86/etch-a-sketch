@@ -1,4 +1,4 @@
-import { resolveGridSize, cellCount } from "./lib.js";
+import { resolveGridSize, cellCount, pickRandomColor } from "./lib.js";
 
 const container = document.querySelector(".grid");
 const modifyGrid = document.getElementById("modify-grid");
@@ -48,7 +48,9 @@ modifyGrid.addEventListener("click", function () {
 // which this module no longer exposes to the global scope; wire them here.
 const blackButton = document.querySelector(".tool-button.black");
 const whiteButton = document.querySelector(".tool-button.white");
+const randomButton = document.querySelector(".tool-button.random");
 blackButton?.addEventListener("click", () => setChosenColor("black"));
 whiteButton?.addEventListener("click", () => setChosenColor("white"));
+randomButton?.addEventListener("click", () => setChosenColor(pickRandomColor()));
 
 makeGrid(16);

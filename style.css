@@ -53,6 +53,10 @@ body {
     background-image: url(icons8-erase.svg);
 }
 
+.random {
+    background-image: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+}
+
 .grid {
     display: grid;
     grid-template-rows: repeat(var(--grid-rows), 1fr);

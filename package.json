@@ -5,7 +5,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test lib.test.js"
+    "test": "node --test lib.test.js grid.test.js persistence.test.js",
+    "test:e2e": "playwright test"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
 }

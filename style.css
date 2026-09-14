@@ -1,8 +1,3 @@
-:root {
-    --grid-cols: 1;
-    --grid-rows: 1;
-}
-
 body {
     background-color: black;
     color: white; /* Fallback for older browsers */
@@ -15,16 +10,12 @@ body {
     font-size: 48px;
 }
 
-.grid {
+#board {
     border-width: 10px;
     border-style: solid;
-    display: grid;
-    grid-template-rows: repeat(var(--grid-rows), 1fr);
-    grid-template-columns: repeat(var(--grid-cols), 1fr);
-    width: 600px;
-    max-width: 600px;
-    height: 600px;
-    max-height: 600px;
+    background-color: white;
+    cursor: crosshair;
+    touch-action: none; /* pointermove drives drawing; no scroll/zoom gestures */
 }
 
 .flex-container {
@@ -84,7 +75,44 @@ body {
     border: 0;
 }
 
-.grid:focus-visible {
+#board:focus-visible {
     outline: 2px solid #40c4ff;
     outline-offset: 2px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.action-button {
+    border-width: thick;
+    border-color: white;
+    border-color: rgb(255, 255, 255, 0.88);
+    border-style: solid;
+    border-radius: 8px;
+    height: 48px;
+    min-width: 96px;
+    background-color: black;
+    color: inherit;
+    font-family: inherit;
+    font-size: 18px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.action-button:active {
+    background-color: white;
+    color: black;
+}
+
+.action-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.action-button:disabled:active {
+    background-color: black;
+    color: inherit;
 }

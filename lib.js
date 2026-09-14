@@ -206,3 +206,56 @@ export function resizeGrid(grid, newSize) {
 export function canUndo(grid) {
     return grid.history.length > 0;
 }
+
+// --- Persistence (issue #9) ------------------------------------------------
+
+/** localStorage key; the "v" field in the payload is a format version. */
+export const STORAGE_KEY = "etch-a-sketch:grid";
+
+/**
+ * Restore a grid from storage, or return a fresh one.
+ *
+ * The payload is validated, not trusted: a wrong shape, a size/cell mismatch
+ * or a non-string cell silently falls back to a new grid rather than
+ * crashing the app. History is always restored empty — undo only applies
+ * within a session.
+ *
+ * @param {Storage} storage
+ * @param {number} fallbackSize used when nothing valid is stored
+ * @returns {{size: number, cells: (string|null)[], history: object[]}}
+ */
+export function loadGrid(storage, fallbackSize) {
+    try {
+        const raw = storage.getItem(STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            const { ok, size } = resolveGridSize(parsed && parsed.size);
+            const cells = parsed && parsed.cells;
+            if (ok && Array.isArray(cells) && cells.length === size * size &&
+                cells.every((c) => c === null || (typeof c === "string" && c.length > 0))) {
+                return { size, cells, history: [] };
+            }
+        }
+    } catch {
+        // corrupted payload or blocked storage: fall through to a fresh grid
+    }
+    return createGrid(fallbackSize);
+}
+
+/**
+ * Persist a grid. Never throws — storage may be full or blocked (private
+ * browsing, quota) and drawing must keep working in-session either way.
+ *
+ * @param {Storage} storage
+ * @param {object} grid
+ * @returns {boolean} true when the grid was stored
+ */
+export function saveGrid(storage, grid) {
+    try {
+        const payload = JSON.stringify({ v: 1, size: grid.size, cells: grid.cells });
+        storage.setItem(STORAGE_KEY, payload);
+        return true;
+    } catch {
+        return false;
+    }
+}

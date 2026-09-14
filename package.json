@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test lib.test.js grid.test.js"
+    "test": "node --test lib.test.js grid.test.js persistence.test.js"
   },
   "license": "MIT"
 }

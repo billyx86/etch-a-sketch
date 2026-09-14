@@ -7,6 +7,9 @@ import {
     createGrid,
     paintCell,
     paintLine,
+    lineCells,
+    applyPaint,
+    commitStroke,
     undo,
     clearGrid,
     resizeGrid,
@@ -130,6 +133,60 @@ test("resizeGrid keeps the overlapping top-left drawing", () => {
     assert.equal(smaller.cells[1], null);
     // Original grid untouched.
     assert.equal(g.size, 4);
+});
+
+test("lineCells is a pure Bresenham: both endpoints included, correct counts", () => {
+    // Horizontal row.
+    assert.deepEqual(lineCells(8, 8 * 2 + 0, 8 * 2 + 5), [16, 17, 18, 19, 20, 21]);
+    // Single cell.
+    assert.deepEqual(lineCells(8, 5, 5), [5]);
+    // General diagonal (0,0) -> (5,3): 6 cells, endpoints included.
+    const diag = lineCells(8, 0, 3 * 8 + 5);
+    assert.equal(diag.length, 6);
+    assert.equal(diag[0], 0);
+    assert.equal(diag[diag.length - 1], 3 * 8 + 5);
+    // Reversed direction covers the same cells.
+    assert.deepEqual([...lineCells(8, 3 * 8 + 5, 0)].sort((a, b) => a - b),
+        [...diag].sort((a, b) => a - b));
+});
+
+test("applyPaint records only genuinely changed cells, deduping revisits", () => {
+    const g = createGrid(4);
+    g.cells[1] = "black";
+    // Indices may repeat (a retraced path); each cell is processed once.
+    const changed = applyPaint(g, [0, 1, 2, 1, 3], "black");
+    assert.deepEqual(
+        changed.map((c) => c.index),
+        [0, 2, 3],
+        "cell 1 already black -> skipped; the repeated 1 recorded once"
+    );
+    assert.deepEqual(
+        changed.map((c) => c.prev),
+        [null, null, null],
+    );
+    // Painting with the eraser ("white" as a distinct value) restores.
+    const undoBack = applyPaint(g, [0, 2, 3], "white");
+    assert.deepEqual(
+        undoBack.map((c) => c.prev),
+        ["black", "black", "black"],
+    );
+});
+
+test("commitStroke commits a collected stroke as ONE undo level", () => {
+    const g = createGrid(4);
+    // Simulate what the renderer does: paint live, collect changes, commit once.
+    const changes = [];
+    for (const index of lineCells(4, 0, 7)) {
+        changes.push({ index, prev: g.cells[index] });
+        g.cells[index] = "black";
+    }
+    assert.equal(commitStroke(g, changes), 4);
+    assert.equal(g.history.length, 1, "whole stroke = one level");
+    assert.equal(undo(g), true);
+    assert.ok(g.cells.every((c) => c === null), "undo restores the whole stroke");
+    // Empty stroke commits nothing.
+    assert.equal(commitStroke(g, []), 0);
+    assert.equal(g.history.length, 0);
 });
 
 test("resizeGrid rejects bad sizes with RangeError", () => {

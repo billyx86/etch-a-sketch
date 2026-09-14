@@ -101,10 +101,80 @@ export function paintCell(grid, index, color) {
 }
 
 /**
- * Paint the cells of a straight run (Bresenham line) between two cells in
- * ONE undo step — a mouse/touch drag counts as a single undo, not one level
- * per cell. Cells already holding `color` are skipped, so scrubbing a stroke
- * over itself doesn't churn history.
+ * Indices of the cells a straight line covers, from `from` to `to`
+ * inclusive (integer Bresenham). Pure: no grid state is touched, so
+ * callers can preview a run or collect a whole stroke.
+ *
+ * @param {number} size grid dimension
+ * @param {number} from start cell index (row * size + col)
+ * @param {number} to   end cell index
+ * @returns {number[]} cell indices along the line
+ */
+export function lineCells(size, from, to) {
+    const x0 = from % size;
+    const y0 = Math.floor(from / size);
+    const x1 = to % size;
+    const y1 = Math.floor(to / size);
+    const dx = Math.abs(x1 - x0);
+    const dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    const cells = [];
+    let x = x0;
+    let y = y0;
+    for (;;) {
+        cells.push(y * size + x);
+        if (x === x1 && y === y1) break;
+        const e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x += sx; }
+        if (e2 <= dx) { err += dx; y += sy; }
+    }
+    return cells;
+}
+
+/**
+ * Set `indices` on the grid to `color`, touching each cell at most once
+ * (later occurrences overwrite earlier ones).
+ *
+ * @returns {Array<{index: number, prev: string|null}>} only the cells that
+ *   actually changed — painting a cell the same colour records nothing
+ */
+export function applyPaint(grid, indices, color) {
+    const touched = new Map();
+    for (const index of indices) {
+        if (!touched.has(index)) touched.set(index, grid.cells[index]);
+    }
+    const changed = [];
+    for (const [index, prev] of touched) {
+        if (prev !== color) {
+            grid.cells[index] = color;
+            changed.push({ index, prev });
+        }
+    }
+    return changed;
+}
+
+/**
+ * Commit the changes collected while a pointer was down as ONE undo level.
+ * A mouse/touch drag is therefore a single undo, not one level per cell
+ * touched along the way.
+ *
+ * @param {object} grid
+ * @param {Array<{index: number, prev: string|null}>} changes
+ * @returns {number} how many cells the stroke covers (0 when nothing to do)
+ */
+export function commitStroke(grid, changes) {
+    if (changes.length === 0) return 0;
+    grid.history.push({ type: "line", cells: changes });
+    if (grid.history.length > MAX_HISTORY) grid.history.shift();
+    return changes.length;
+}
+
+/**
+ * Paint the cells of a straight run between two cells in ONE undo step.
+ * Cells already holding `color` are skipped, so scrubbing a stroke over
+ * itself doesn't churn history.
  *
  * @param {object} grid
  * @param {number} from start cell index
@@ -113,44 +183,7 @@ export function paintCell(grid, index, color) {
  * @returns {number} how many cells changed
  */
 export function paintLine(grid, from, to, color) {
-    const size = grid.size;
-    const x0 = from % size;
-    const y0 = Math.floor(from / size);
-    const x1 = to % size;
-    const y1 = Math.floor(to / size);
-    // Integer Bresenham: every step moves one axis one cell toward the
-    // target, so this always terminates in dx + dy + 1 steps.
-    const dx = Math.abs(x1 - x0);
-    const dy = -Math.abs(y1 - y0);
-    const sx = x0 < x1 ? 1 : -1;
-    const sy = y0 < y1 ? 1 : -1;
-    let err = dx + dy;
-
-    const changed = [];
-    let x = x0;
-    let y = y0;
-    for (;;) {
-        const index = y * size + x;
-        if (grid.cells[index] !== color) {
-            changed.push({ index, prev: grid.cells[index] });
-            grid.cells[index] = color;
-        }
-        if (x === x1 && y === y1) break;
-        const e2 = 2 * err;
-        if (e2 >= dy) {
-            err += dy;
-            x += sx;
-        }
-        if (e2 <= dx) {
-            err += dx;
-            y += sy;
-        }
-    }
-    if (changed.length > 0) {
-        grid.history.push({ type: "line", cells: changed });
-        if (grid.history.length > MAX_HISTORY) grid.history.shift();
-    }
-    return changed.length;
+    return commitStroke(grid, applyPaint(grid, lineCells(grid.size, from, to), color));
 }
 
 /**

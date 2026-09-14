@@ -14,8 +14,8 @@
         <h1>Etch-a-Sketch</h1>
       </div>
       <div class="content">
-        <div class="grid" tabindex="0" role="application"
-     aria-label="Drawing grid. Use the arrow keys to move and Space or Enter to paint."></div>
+        <canvas id="board" tabindex="0" role="application"
+     aria-label="Drawing board. Use the arrow keys to move and Space or Enter to paint."></canvas>
       </div>
       <div class="buttons">
         <label class="visually-hidden" for="modify-grid">Grid size (1-150)</label>
@@ -24,6 +24,11 @@
         <button class="tool-button black" data-tool="black" aria-label="Black pen"></button>
         <button class="tool-button white" data-tool="white" aria-label="Eraser"></button>
         <button class="tool-button random" data-tool="random" aria-label="Random Colour"></button>
+        <div class="action-buttons">
+          <button id="undo" type="button" class="action-button" disabled aria-label="Undo last action (Ctrl+Z)">Undo</button>
+          <button id="clear" type="button" class="action-button" aria-label="Clear the whole drawing">Clear</button>
+          <button id="export" type="button" class="action-button" aria-label="Save the drawing as a PNG image">Save PNG</button>
+        </div>
       </div>
     </div>
   </body>

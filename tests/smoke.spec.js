@@ -171,9 +171,11 @@ test('restores the drawing from localStorage on reload', async ({ page }) => {
 
 test('renders a 150x150 grid without stalling', async ({ page }) => {
   const start = Date.now();
+  // Set the value and fire `change` — the event the handler listens for
+  // (a synthetic .click() alone no longer resizes; see #14).
   await page.locator('#modify-grid').evaluate((el) => {
     el.value = '150';
-    el.click();
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await expect(page.locator('#grid-size-text')).toHaveText('150x150');
   const elapsed = Date.now() - start;
@@ -186,4 +188,49 @@ test('renders a 150x150 grid without stalling', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.up();
   expect(await paintedPixels(page)).toBeGreaterThan(10);
+});
+
+test('grid-size slider resizes via keyboard (no click event fires)', async ({ page }) => {
+  // Regression for the click-only wiring (#14): a native <input type=range>
+  // operated with the keyboard fires `input` + `change` but NEVER `click`,
+  // so the board must resize when the focused slider gets arrow keys.
+  await expect(page.locator('#grid-size-text')).toHaveText('16x16');
+  const slider = page.locator('#modify-grid');
+  await slider.focus();
+  await slider.press('ArrowRight');
+  await slider.press('ArrowRight');
+  await slider.press('ArrowRight');
+  await expect(slider).toHaveValue('19');
+  await expect(page.locator('#grid-size-text')).toHaveText('19x19');
+  // Prove the grid MODEL resized, not just the label: at 1x1 a single paint
+  // covers the entire 600x600 canvas.
+  await slider.press('Home');
+  await expect(page.locator('#grid-size-text')).toHaveText('1x1');
+  const box = await page.locator('#board').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  expect(await paintedPixels(page)).toBeGreaterThan(350000, 'a 1x1 paint fills the whole board');
+  // End jumps back to the maximum size.
+  await slider.press('End');
+  await expect(page.locator('#grid-size-text')).toHaveText('150x150');
+});
+
+test('grid-size slider still resizes via mouse drag', async ({ page }) => {
+  // The fix (click -> change) must not regress the mouse path: dragging the
+  // thumb fires `change` on release (probe-verified: drag fires input...change
+  // + click, track click fires input + change + click).
+  const slider = page.locator('#modify-grid');
+  // The slider sits below the default 720px viewport; bring it into view.
+  await slider.scrollIntoViewIfNeeded();
+  const box = await slider.boundingBox();
+  const startValue = Number(await slider.inputValue());
+  const thumbX = box.x + box.width * ((startValue - 1) / 149);
+  await page.mouse.move(thumbX, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const value = await slider.inputValue();
+  expect(Number(value)).toBeGreaterThan(startValue);
+  await expect(page.locator('#grid-size-text')).toHaveText(`${value}x${value}`);
 });

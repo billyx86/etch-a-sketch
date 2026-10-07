@@ -33,7 +33,7 @@ python3 -m http.server 8000
 | Black pen button | Black strokes |
 | Eraser button | White (erase) strokes |
 | Rainbow disc button | Every stroke picks a fresh random HSL colour |
-| Grid size slider | Resizes the board 1×1 – 150×150 (keeps the overlapping drawing) |
+| Grid size slider | Resizes the board 1×1 – 150×150 (keeps the overlapping drawing). Works by mouse or keyboard — focus it, then use **← →** / **Home** / **End** |
 
 The drawing is saved to `localStorage` automatically, so it survives a page
 reload — at any grid size.
@@ -64,7 +64,8 @@ npm run test:e2e  # browser smoke tests (Playwright + Chromium)
 Bresenham lines, undo/clear/resize, and localStorage persistence.
 `npm run test:e2e` drives the real page in headless Chromium: drag painting,
 one-drag-one-undo semantics, Save PNG (it checks the downloaded bytes are a
-valid PNG), reload persistence, and a 150×150 render-perf check.
+valid PNG), reload persistence, a 150×150 render-perf check, and the grid-size
+slider resizing via both keyboard (arrow keys / Home / End) and mouse drag.
 
 Locally, if you already have a Chromium build you can point Playwright at it
 instead of downloading one:
@@ -93,3 +94,9 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npx playwright test
   so the file is always crisp.
 - The toolbar is driven by `data-tool` attributes + `aria-pressed`, not inline
   `onclick` handlers, so the markup doesn't depend on script-internal names.
+- The grid-size slider listens for `change`, not `click`. A native
+  `<input type="range">` operated with the keyboard fires `input` + `change`
+  but never `click`, so a `click`-only handler left the board stuck at 16×16
+  for keyboard users. `change` fires on every interaction mode (keyboard
+  arrows, track clicks, thumb-drag release) yet — unlike `input` — only once
+  per committed change, not per pixel while dragging.

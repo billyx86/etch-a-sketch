@@ -276,7 +276,12 @@ const gridSizeText = document.getElementById("grid-size-text");
 modifyGrid.value = String(grid.size);
 gridSizeText.textContent = `${grid.size}x${grid.size}`;
 
-modifyGrid.addEventListener("click", function () {
+// `change` rather than `click`: a range slider fires `change` on EVERY
+// interaction mode (keyboard arrows, track clicks, and thumb-drag release),
+// but a keyboard-only interaction fires NO `click` at all, which left the
+// board stuck at 16x16 for keyboard users. `change` also avoids the
+// per-pixel `input` churn while dragging. (Issue #14)
+modifyGrid.addEventListener("change", function () {
     const { ok, size, message } = resolveGridSize(modifyGrid.value);
     if (ok) {
         if (size === grid.size) return;

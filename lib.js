@@ -187,7 +187,11 @@ export function paintLine(grid, from, to, color) {
 }
 
 /**
- * Undo the last change (paint, drag or clear).
+ * Undo the last change (paint, drag, clear or resize).
+ *
+ * A resize restores BOTH the previous size and the previous cells, because a
+ * resampled grid has a different dimension than the one it undoes (issue #11).
+ *
  * @returns {boolean} false when the history is empty
  */
 export function undo(grid) {
@@ -197,6 +201,9 @@ export function undo(grid) {
         grid.cells = action.cells;
     } else if (action.type === "line") {
         for (const c of action.cells) grid.cells[c.index] = c.prev;
+    } else if (action.type === "resize") {
+        grid.size = action.size;
+        grid.cells = action.cells;
     } else {
         grid.cells[action.index] = action.prev;
     }
@@ -219,6 +226,12 @@ export function clearGrid(grid) {
 /**
  * Resize, keeping whatever drawing lives in the overlapping top-left area.
  * Returns a NEW grid (the old one is left untouched).
+ *
+ * A resize is a state change, so the pre-resize grid is recorded as ONE undo
+ * level (issue #11): the caller can undo back to the previous size AND the
+ * previous drawing — including cells a shrink dropped. The old grid's existing
+ * undo history is carried over, so a resize never wipes undo levels. Resizing
+ * to the same size is a pure no-op (same cells, same history, no new level).
  */
 export function resizeGrid(grid, newSize) {
     const { ok, size } = resolveGridSize(newSize);
@@ -231,6 +244,12 @@ export function resizeGrid(grid, newSize) {
         for (let c = 0; c < copyW; c++) {
             next.cells[r * size + c] = old.cells[r * old.size + c];
         }
+    }
+    if (size !== old.size) {
+        // Carry the old undo levels over, then record the pre-resize grid.
+        next.history = old.history.slice();
+        next.history.push({ type: "resize", size: old.size, cells: old.cells });
+        if (next.history.length > MAX_HISTORY) next.history.shift();
     }
     return next;
 }

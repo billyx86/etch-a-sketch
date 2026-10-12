@@ -77,6 +77,10 @@ function afterChange() {
     render();
     saveGrid(window.localStorage, grid);
     undoButton.disabled = !canUndo(grid);
+    // The grid size can change on undo (undoing a resize, issue #11), so keep
+    // the size label and slider in sync with the model — not only on resize.
+    gridSizeText.textContent = `${grid.size}x${grid.size}`;
+    modifyGrid.value = String(grid.size);
 }
 
 function commitGrid(next) {
@@ -285,8 +289,7 @@ modifyGrid.addEventListener("change", function () {
     const { ok, size, message } = resolveGridSize(modifyGrid.value);
     if (ok) {
         if (size === grid.size) return;
-        commitGrid(resizeGrid(grid, size)); // keeps the overlapping drawing
-        gridSizeText.textContent = `${size}x${size}`;
+        commitGrid(resizeGrid(grid, size)); // keeps the drawing + one undo level
     } else {
         alert(message);
     }

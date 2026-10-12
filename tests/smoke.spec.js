@@ -234,3 +234,39 @@ test('grid-size slider still resizes via mouse drag', async ({ page }) => {
   expect(Number(value)).toBeGreaterThan(startValue);
   await expect(page.locator('#grid-size-text')).toHaveText(`${value}x${value}`);
 });
+
+test('resizing keeps an undo level; undoing the resize restores the pre-resize grid (#11)', async ({ page }) => {
+  const board = page.locator('#board');
+  const box = await board.boundingBox();
+  const cy = box.y + box.height / 2;
+
+  // Paint a stroke on the default 16x16 board.
+  await page.mouse.move(box.x + box.width * 0.3, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.7, cy, { steps: 6 });
+  await page.mouse.up();
+  const original = await paintedPixels(page);
+  expect(original).toBeGreaterThan(500);
+  await expect(page.locator('#undo')).toBeEnabled();
+
+  // Resize 16 -> 8 via the slider (set value + fire `change`, as the user's
+  // drag-release does).
+  await page.locator('#modify-grid').evaluate((el) => {
+    el.value = '8';
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.locator('#grid-size-text')).toHaveText('8x8');
+
+  // BUG (#11): a resize used to wipe the undo history, so the Undo button went
+  // permanently disabled. A resize is a state change and must leave an undo level.
+  await expect(page.locator('#undo')).toBeEnabled('a resize must leave an undo level');
+
+  // Undo the resize: restores BOTH the pre-resize size and the drawing, and
+  // re-syncs the size label + slider (not just the canvas).
+  await page.click('#undo');
+  await expect(page.locator('#grid-size-text')).toHaveText('16x16');
+  await expect(page.locator('#modify-grid')).toHaveValue('16');
+  const restored = await paintedPixels(page);
+  expect(restored).toBeGreaterThan(500, 'the drawing survives a resize + undo round-trip');
+  expect(Math.abs(restored - original)).toBeLessThan(200, 'the original 16x16 stroke is restored');
+});

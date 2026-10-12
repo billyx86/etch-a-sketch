@@ -135,6 +135,49 @@ test("resizeGrid keeps the overlapping top-left drawing", () => {
     assert.equal(g.size, 4);
 });
 
+test("resizeGrid records an undo level so undo restores the pre-resize grid (#11)", () => {
+    const g = createGrid(4);
+    g.cells[0] = "black";      // (0,0)
+    g.cells[4 + 1] = "black";  // (1,1)
+    const preCells = g.cells.slice();
+
+    const bigger = resizeGrid(g, 6);
+    // The resized grid must carry an undo level — a resize is a state change.
+    assert.equal(canUndo(bigger), true, "a resize should leave an undo level");
+    assert.equal(bigger.history.length, 1, "one resize = one undo level");
+
+    // Undo the resize: it must restore BOTH the old size and the old cells,
+    // since the resampled grid has a different dimension than the one it undoes.
+    assert.equal(undo(bigger), true);
+    assert.equal(bigger.size, 4, "undo reverts the size to the pre-resize value");
+    assert.deepEqual(bigger.cells, preCells, "undo restores the pre-resize cells");
+    assert.equal(canUndo(bigger), false, "the single resize level is consumed");
+});
+
+test("resizeGrid undo on a shrink restores cells the resize dropped (#11)", () => {
+    const g = createGrid(6);
+    g.cells[0] = "red";   // (0,0) — inside the 3x3 overlap
+    g.cells[35] = "red";  // (5,5) — outside the 3x3 overlap
+    const smaller = resizeGrid(g, 3);
+    assert.equal(canUndo(smaller), true, "shrink also leaves an undo level");
+    assert.equal(smaller.size, 3, "resized down to 3x3");
+    assert.equal(smaller.cells.length, 9, "the 3x3 grid has 9 cells");
+    assert.equal(smaller.cells[0], "red", "the overlapping (0,0) cell survives the shrink");
+
+    assert.equal(undo(smaller), true);
+    assert.equal(smaller.size, 6, "undo reverts to the larger size");
+    assert.equal(smaller.cells[35], "red", "the dropped (5,5) cell is restored on undo");
+    assert.equal(canUndo(smaller), false);
+});
+
+test("a same-size resize is a no-op and records no undo level (#11)", () => {
+    const g = createGrid(4);
+    g.cells[0] = "black";
+    const same = resizeGrid(g, 4);
+    assert.equal(canUndo(same), false, "resampling to the same size churns no history");
+    assert.deepEqual(same.cells, g.cells, "the drawing is preserved");
+});
+
 test("lineCells is a pure Bresenham: both endpoints included, correct counts", () => {
     // Horizontal row.
     assert.deepEqual(lineCells(8, 8 * 2 + 0, 8 * 2 + 5), [16, 17, 18, 19, 20, 21]);

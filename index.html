@@ -24,6 +24,11 @@
         <button class="tool-button black" data-tool="black" aria-label="Black pen"></button>
         <button class="tool-button white" data-tool="white" aria-label="Eraser"></button>
         <button class="tool-button random" data-tool="random" aria-label="Random Colour"></button>
+        <button class="tool-button custom" data-tool="custom" aria-label="Choose a colour"></button>
+        <div class="colour-pick">
+          <label class="visually-hidden" for="custom-color">Colour</label>
+          <input id="custom-color" type="color" value="#35618f" hidden aria-hidden="true">
+        </div>
         <div class="action-buttons">
           <button id="undo" type="button" class="action-button" disabled aria-label="Undo last action (Ctrl+Z)">Undo</button>
           <button id="clear" type="button" class="action-button" aria-label="Clear the whole drawing">Clear</button>

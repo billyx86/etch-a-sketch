@@ -7,9 +7,9 @@
 
 import {
     resolveGridSize,
-    pickRandomColor,
     TOOLS,
     isToolId,
+    toolColor,
     paintCell,
     lineCells,
     commitStroke,
@@ -202,16 +202,17 @@ canvas.addEventListener("keydown", function (event) {
 
 // --- toolbar ---
 
+const customColorInput = document.getElementById("custom-color");
+
 function selectTool(id, button) {
     if (!isToolId(id)) return;
-    if (id === TOOLS.random.id) {
-        chosenColor = pickRandomColor();
-    } else {
-        chosenColor = id; // "black" / "white" double as CSS colours
-    }
+    chosenColor = toolColor(id, customColorInput.value);
     for (const b of document.querySelectorAll(".tool-button")) {
         b.setAttribute("aria-pressed", String(b === button));
     }
+    // The Colour tool's swatch mirrors whatever the picker currently holds.
+    customColorInput.hidden = id !== TOOLS.custom.id;
+    customColorInput.setAttribute("aria-hidden", String(id !== TOOLS.custom.id));
 }
 
 const toolButtons = document.querySelectorAll(".tool-button");
@@ -221,6 +222,16 @@ for (const button of toolButtons) {
     const id = button.dataset.tool;
     button.addEventListener("click", () => selectTool(id, button));
 }
+
+// The Colour picker IS the custom tool: picking a colour selects it and
+// immediately paints with it, so the user never has to click twice.
+customColorInput.addEventListener("input", () => {
+    if (!isToolId(TOOLS.custom.id)) return;
+    chosenColor = toolColor(TOOLS.custom.id, customColorInput.value);
+    for (const b of document.querySelectorAll(".tool-button")) {
+        b.setAttribute("aria-pressed", String(b.dataset.tool === TOOLS.custom.id));
+    }
+});
 
 // --- Clear / Undo (issue #8) ---
 

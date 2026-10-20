@@ -12,6 +12,7 @@ import {
     pickRandomColor,
     TOOLS,
     isToolId,
+    toolColor,
 } from "./lib.js";
 
 test("MIN/MAX grid size bounds", () => {
@@ -75,17 +76,36 @@ test("pickRandomColor varies between calls", () => {
     assert.ok(colours.size > 1, "expected at least two distinct colours in 50 draws");
 });
 
-test("TOOLS exposes the three toolbar tools with stable ids", () => {
-    assert.deepEqual(Object.keys(TOOLS).sort(), ["black", "random", "white"]);
+test("TOOLS exposes the four toolbar tools with stable ids", () => {
+    assert.deepEqual(Object.keys(TOOLS).sort(), ["black", "custom", "random", "white"]);
     assert.equal(TOOLS.black.label, "Black");
     assert.equal(TOOLS.white.label, "Eraser");
     assert.equal(TOOLS.random.label, "Random Colour");
+    assert.equal(TOOLS.custom.label, "Colour");
 });
 
 test("isToolId only accepts known tool ids", () => {
     assert.ok(isToolId("black"));
     assert.ok(isToolId("white"));
     assert.ok(isToolId("random"));
+    assert.ok(isToolId("custom"));
     assert.ok(!isToolId("blue"));
     assert.ok(!isToolId("__proto__"));
+});
+
+test("toolColor resolves the colour each tool paints with", () => {
+    assert.equal(toolColor("black", "#000000"), "black");
+    assert.equal(toolColor("white", "#000000"), "white");
+    // random: an hsl(...) string, format-checked (the exact hue varies)
+    assert.match(toolColor("random", "#000000"), /^hsl\(\d{1,3}, 100%, 50%\)$/);
+    // custom: the picker's value, normalised to lowercase
+    assert.equal(toolColor("custom", "#35618F"), "#35618f");
+    assert.equal(toolColor("custom", "#FF0000"), "#ff0000");
+});
+
+test("toolColor rejects malformed custom colours and unknown tools", () => {
+    for (const bad of ["", "#12345", "#1234567", "red", "123456", "#GGGGGG", null, 42]) {
+        assert.throws(() => toolColor("custom", bad), /Invalid custom colour/);
+    }
+    assert.throws(() => toolColor("blue", "#000000"), /Unknown tool/);
 });

@@ -55,16 +55,44 @@ export function pickRandomColor() {
     return randomColorFor(Math.floor(Math.random() * 360));
 }
 
-/** The three drawing tools, in the order they appear in the toolbar. */
+/** The four drawing tools, in the order they appear in the toolbar. */
 export const TOOLS = Object.freeze({
     black: Object.freeze({ id: "black", label: "Black" }),
     white: Object.freeze({ id: "white", label: "Eraser" }),
     random: Object.freeze({ id: "random", label: "Random Colour" }),
+    custom: Object.freeze({ id: "custom", label: "Colour" }),
 });
 
 /** @param {string} id @returns {boolean} whether id names a known tool */
 export function isToolId(id) {
     return Object.prototype.hasOwnProperty.call(TOOLS, id);
+}
+
+/**
+ * Resolve the colour a tool paints with (issue #12).
+ *
+ * @param {string} id tool id ("black" | "white" | "random" | "custom")
+ * @param {string} customColor the colour input's current value (#rrggbb),
+ *   only used when id === "custom"
+ * @returns {string} the CSS colour to paint with
+ * @throws {Error} unknown tool id, or a malformed custom colour
+ */
+export function toolColor(id, customColor) {
+    switch (id) {
+        case "black":
+            return "black";
+        case "white":
+            return "white";
+        case "random":
+            return pickRandomColor();
+        case "custom":
+            if (typeof customColor !== "string" || !/^#[0-9a-fA-F]{6}$/.test(customColor)) {
+                throw new Error(`Invalid custom colour: ${String(customColor)}`);
+            }
+            return customColor.toLowerCase();
+        default:
+            throw new Error(`Unknown tool: ${String(id)}`);
+    }
 }
 
 // --- Grid model -----------------------------------------------------------

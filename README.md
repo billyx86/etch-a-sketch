@@ -86,7 +86,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npx playwright test
   cells live for responsiveness but commits **one** history entry on release,
   so "undo" means "undo the whole stroke", not "undo one cell".
 - Persistence serialises the grid to `localStorage` under a single key
-  (`etch-a-sketch-grid`), validated on load. The saved grid is restored at
+  (`STORAGE_KEY`, `"etch-a-sketch:grid"` in `lib.js`), validated on load. The saved grid is restored at
   its own size (the slider reflects it); `resizeGrid` does the resampling
   when the size changes, so a drawing outlives both reloads and resizes.
 - PNG export rasterises the model to an offscreen canvas (one `fillRect` per

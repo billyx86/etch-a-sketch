@@ -31,26 +31,68 @@ export function cellCount(size) {
 }
 
 /**
+ * Format a full-saturation HSL colour for a given hue (0-359). Pure and
+ * deterministic, so the Random Colour tool's output is unit-testable without
+ * mocking Math.random.
+ *
+ * @param {number} hue integer 0-359
+ * @returns {string} e.g. "hsl(123, 100%, 50%)"
+ */
+export function randomColorFor(hue) {
+    if (!Number.isInteger(hue) || hue < 0 || hue > 359) {
+        throw new RangeError(`Hue must be an integer between 0-359, got ${hue}.`);
+    }
+    return `hsl(${hue}, 100%, 50%)`;
+}
+
+/**
  * Pick a random colour for the Random Colour tool: full-saturation HSL
  * with a random hue, matching the original implementation's format.
  *
  * @returns {string} e.g. "hsl(123, 100%, 50%)"
  */
 export function pickRandomColor() {
-    const hue = Math.floor(Math.random() * 360);
-    return `hsl(${hue}, 100%, 50%)`;
+    return randomColorFor(Math.floor(Math.random() * 360));
 }
 
-/** The three drawing tools, in the order they appear in the toolbar. */
+/** The four drawing tools, in the order they appear in the toolbar. */
 export const TOOLS = Object.freeze({
     black: Object.freeze({ id: "black", label: "Black" }),
     white: Object.freeze({ id: "white", label: "Eraser" }),
     random: Object.freeze({ id: "random", label: "Random Colour" }),
+    custom: Object.freeze({ id: "custom", label: "Colour" }),
 });
 
 /** @param {string} id @returns {boolean} whether id names a known tool */
 export function isToolId(id) {
     return Object.prototype.hasOwnProperty.call(TOOLS, id);
+}
+
+/**
+ * Resolve the colour a tool paints with (issue #12).
+ *
+ * @param {string} id tool id ("black" | "white" | "random" | "custom")
+ * @param {string} customColor the colour input's current value (#rrggbb),
+ *   only used when id === "custom"
+ * @returns {string} the CSS colour to paint with
+ * @throws {Error} unknown tool id, or a malformed custom colour
+ */
+export function toolColor(id, customColor) {
+    switch (id) {
+        case "black":
+            return "black";
+        case "white":
+            return "white";
+        case "random":
+            return pickRandomColor();
+        case "custom":
+            if (typeof customColor !== "string" || !/^#[0-9a-fA-F]{6}$/.test(customColor)) {
+                throw new Error(`Invalid custom colour: ${String(customColor)}`);
+            }
+            return customColor.toLowerCase();
+        default:
+            throw new Error(`Unknown tool: ${String(id)}`);
+    }
 }
 
 // --- Grid model -----------------------------------------------------------

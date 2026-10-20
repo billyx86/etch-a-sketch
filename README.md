@@ -33,6 +33,7 @@ python3 -m http.server 8000
 | Black pen button | Black strokes |
 | Eraser button | White (erase) strokes |
 | Rainbow disc button | Every stroke picks a fresh random HSL colour |
+| Colour button + picker | Paints with a custom colour: click the button to reveal the picker, choose any colour — the first pick also selects the tool |
 | Grid size slider | Resizes the board 1×1 – 150×150 (keeps the overlapping drawing). Works by mouse or keyboard — focus it, then use **← →** / **Home** / **End** |
 
 The drawing is saved to `localStorage` automatically, so it survives a page
@@ -86,7 +87,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npx playwright test
   cells live for responsiveness but commits **one** history entry on release,
   so "undo" means "undo the whole stroke", not "undo one cell".
 - Persistence serialises the grid to `localStorage` under a single key
-  (`etch-a-sketch-grid`), validated on load. The saved grid is restored at
+  (`STORAGE_KEY`, `"etch-a-sketch:grid"` in `lib.js`), validated on load. The saved grid is restored at
   its own size (the slider reflects it); `resizeGrid` does the resampling
   when the size changes, so a drawing outlives both reloads and resizes.
 - PNG export rasterises the model to an offscreen canvas (one `fillRect` per

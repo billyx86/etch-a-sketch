@@ -55,6 +55,32 @@ body {
     background-image: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
 }
 
+.custom {
+    /* A neutral "choose a colour" swatch: the picker reveals itself when
+       selected, so the button stays a plain grey disc. */
+    background-color: #555;
+}
+
+.colour-pick {
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+#custom-color {
+    width: 44px;
+    height: 44px;
+    padding: 2px;
+    border: 3px solid rgb(255, 255, 255, 0.88);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+}
+
+#custom-color[hidden] {
+    display: none;
+}
+
 #modify-grid {
     margin-top: 8px;
 }

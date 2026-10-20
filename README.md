@@ -33,6 +33,7 @@ python3 -m http.server 8000
 | Black pen button | Black strokes |
 | Eraser button | White (erase) strokes |
 | Rainbow disc button | Every stroke picks a fresh random HSL colour |
+| Colour button + picker | Paints with a custom colour: click the button to reveal the picker, choose any colour — the first pick also selects the tool |
 | Grid size slider | Resizes the board 1×1 – 150×150 (keeps the overlapping drawing). Works by mouse or keyboard — focus it, then use **← →** / **Home** / **End** |
 
 The drawing is saved to `localStorage` automatically, so it survives a page

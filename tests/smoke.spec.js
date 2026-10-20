@@ -270,3 +270,64 @@ test('resizing keeps an undo level; undoing the resize restores the pre-resize g
   expect(restored).toBeGreaterThan(500, 'the drawing survives a resize + undo round-trip');
   expect(Math.abs(restored - original)).toBeLessThan(200, 'the original 16x16 stroke is restored');
 });
+
+test('a long drag persists the grid at most twice, not per-cell (#13)', async ({ page }) => {
+  // Regression guard: a fast 150x150 drag once serialised the whole grid to
+  // localStorage on every pointermove. The render path stays live, but
+  // persistence must fire at stroke start and stroke end only.
+  await page.evaluate(() => {
+    let calls = 0;
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (...args) {
+      if (args[0] === 'etch-a-sketch:grid') calls++;
+      return orig.apply(this, args);
+    };
+    window.__storageCalls = () => calls;
+  });
+  const box = await page.locator('#board').boundingBox();
+  const cy = box.y + box.height / 2;
+  // One long stroke across ~14 of the 16 columns.
+  await page.mouse.move(box.x + box.width * 0.05, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.95, cy, { steps: 24 });
+  await page.mouse.up();
+  const calls = await page.evaluate(() => window.__storageCalls());
+  expect(calls).toBeGreaterThanOrEqual(1, 'the stroke was persisted');
+  expect(calls).toBeLessThanOrEqual(2, 'persistence is per-stroke, not per-cell');
+});
+
+test('the Colour tool paints with the picked custom colour (#12)', async ({ page }) => {
+  const picker = page.locator('#custom-color');
+  // The picker is hidden until the Colour tool is selected.
+  expect(await picker.isHidden()).toBe(true);
+  await page.click('.tool-button.custom');
+  expect(await picker.isVisible()).toBe(true);
+
+  // Pick red, then paint a single dot in the centre.
+  await picker.evaluate((el) => {
+    el.value = '#ff0000';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const box = await page.locator('#board').boundingBox();
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  // The centre pixel is red — not the default black pen.
+  const [r, g, b] = await page.evaluate(() => {
+    const c = document.getElementById('board');
+    const ctx = c.getContext('2d');
+    const { width, height } = c;
+    const d = ctx.getImageData(width >> 1, height >> 1, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  });
+  expect(r).toBeGreaterThan(200);
+  expect(g).toBeLessThan(60);
+  expect(b).toBeLessThan(60);
+
+  // Undo reverts the custom-colour dot (undo works per-cell colour, as before).
+  await page.click('#undo');
+  expect(await paintedPixels(page)).toBe(0);
+});

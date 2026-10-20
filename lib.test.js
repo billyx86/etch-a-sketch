@@ -8,6 +8,7 @@ import {
     MAX_GRID_SIZE,
     resolveGridSize,
     cellCount,
+    randomColorFor,
     pickRandomColor,
     TOOLS,
     isToolId,
@@ -46,6 +47,17 @@ test("cellCount is the square of the size", () => {
     assert.equal(cellCount(1), 1);
     assert.equal(cellCount(16), 256);
     assert.equal(cellCount(150), 22500);
+});
+
+test("randomColorFor formats a full-saturation HSL colour for a given hue", () => {
+    assert.equal(randomColorFor(0), "hsl(0, 100%, 50%)");
+    assert.equal(randomColorFor(123), "hsl(123, 100%, 50%)");
+    assert.equal(randomColorFor(359), "hsl(359, 100%, 50%)");
+    // boundary: 360 is out of range (hues wrap, the tool clamps to 0-359)
+    assert.throws(() => randomColorFor(360), RangeError);
+    assert.throws(() => randomColorFor(-1), RangeError);
+    assert.throws(() => randomColorFor(1.5), RangeError);
+    assert.throws(() => randomColorFor("12"), RangeError);
 });
 
 test("pickRandomColor returns a full-saturation HSL colour", () => {

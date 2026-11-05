@@ -11,6 +11,8 @@ import {
     applyPaint,
     commitStroke,
     undo,
+    redo,
+    canRedo,
     clearGrid,
     resizeGrid,
     canUndo,
@@ -236,4 +238,120 @@ test("resizeGrid rejects bad sizes with RangeError", () => {
     const g = createGrid(4);
     assert.throws(() => resizeGrid(g, 0), RangeError);
     assert.throws(() => resizeGrid(g, 151), RangeError);
+});
+
+// --- redo (issue #21) ------------------------------------------------------
+
+test("redo is false with an empty redo stack", () => {
+    const g = createGrid(3);
+    assert.equal(canRedo(g), false);
+    assert.equal(redo(g), false);
+});
+
+test("undo then redo round-trips a single-cell paint", () => {
+    const g = createGrid(3);
+    paintCell(g, 4, "black");
+    assert.equal(undo(g), true);
+    assert.equal(g.cells[4], null);
+    assert.equal(canRedo(g), true);
+    assert.equal(redo(g), true);
+    assert.equal(g.cells[4], "black", "redo reapplies the paint");
+    assert.equal(canRedo(g), false, "the redo level is consumed");
+    assert.equal(canUndo(g), true, "the redo lands back on the undo stack");
+    // Undo works again on the redone state.
+    assert.equal(undo(g), true);
+    assert.equal(g.cells[4], null);
+});
+
+test("redo reverses a whole stroke (line action)", () => {
+    const g = createGrid(5);
+    paintLine(g, 2 * 5 + 0, 2 * 5 + 4, "black");
+    assert.equal(undo(g), true);
+    assert.ok(g.cells.every((c) => c === null));
+    assert.equal(redo(g), true);
+    for (let c = 0; c < 5; c++) assert.equal(g.cells[2 * 5 + c], "black");
+    assert.equal(redo(g), false, "no second redo level");
+});
+
+test("undo -> undo -> redo -> redo walks back and forth in LIFO order", () => {
+    const g = createGrid(3);
+    paintCell(g, 0, "black");
+    paintCell(g, 1, "white");
+    undo(g);
+    undo(g);
+    assert.ok(g.cells.every((c) => c === null));
+    assert.equal(redo(g), true);
+    assert.equal(g.cells[0], "black", "first redo restores the first paint");
+    assert.equal(g.cells[1], null);
+    assert.equal(redo(g), true);
+    assert.equal(g.cells[1], "white", "second redo restores the second paint");
+    assert.equal(redo(g), false);
+});
+
+test("a new stroke clears the redo stack (standard editor behaviour)", () => {
+    const g = createGrid(3);
+    paintCell(g, 0, "black");
+    paintCell(g, 1, "black");
+    undo(g); // redo stack: [paint 1]
+    assert.equal(canRedo(g), true);
+    paintCell(g, 2, "black"); // branch: redo must be gone
+    assert.equal(canRedo(g), false, "a new action invalidates the redo stack");
+    assert.equal(redo(g), false);
+    // Undoing the new paint must NOT resurrect the abandoned paint of cell 1.
+    assert.equal(undo(g), true);
+    assert.equal(g.cells[2], null);
+    assert.equal(g.cells[1], null, "the abandoned branch is gone for good");
+});
+
+test("clearGrid can be undone and redone (whole-array action)", () => {
+    const g = createGrid(3);
+    paintCell(g, 0, "black");
+    paintCell(g, 8, "black");
+    assert.equal(clearGrid(g), 2);
+    assert.ok(g.cells.every((c) => c === null));
+    assert.equal(undo(g), true, "undo the clear");
+    assert.equal(g.cells[0], "black");
+    assert.equal(g.cells[8], "black");
+    assert.equal(redo(g), true, "redo the clear");
+    assert.ok(g.cells.every((c) => c === null), "redo re-clears the board");
+    assert.equal(canRedo(g), false);
+});
+
+test("resize can be undone and redone (size + cells both round-trip)", () => {
+    const g = createGrid(4);
+    g.cells[0] = "black";
+    g.cells[5] = "black";
+    const preCells = g.cells.slice();
+    const bigger = resizeGrid(g, 6);
+    assert.equal(undo(bigger), true, "undo the resize");
+    assert.equal(bigger.size, 4);
+    assert.deepEqual(bigger.cells, preCells);
+    assert.equal(redo(bigger), true, "redo the resize");
+    assert.equal(bigger.size, 6, "redo restores the new size");
+    assert.equal(bigger.cells[0], "black", "overlapping drawing survives redo");
+    assert.equal(redo(bigger), false);
+});
+
+test("undo, redo, undo ping-pongs like a normal editor", () => {
+    const g = createGrid(3);
+    paintCell(g, 0, "black");
+    paintCell(g, 1, "black");
+    undo(g);
+    redo(g); // back to: cells 0 and 1 painted, redo stack empty
+    assert.equal(redo(g), false);
+    undo(g); // back to: only cell 0 painted
+    assert.equal(g.cells[1], null);
+    assert.equal(redo(g), true, "undo->redo->undo is a legitimate ping-pong");
+    assert.equal(g.cells[1], "black");
+    assert.equal(undo(g), true);
+    assert.equal(g.cells[1], null, "and it can ping-pong again");
+});
+
+test("paintLine can be redone", () => {
+    const g = createGrid(5);
+    assert.equal(paintLine(g, 0, 4, "black"), 5);
+    assert.equal(undo(g), true);
+    assert.ok(g.cells.every((c) => c === null));
+    assert.equal(redo(g), true);
+    assert.equal(g.cells.filter((c) => c === "black").length, 5, "redo repainted the whole run");
 });

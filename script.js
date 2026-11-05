@@ -14,9 +14,11 @@ import {
     lineCells,
     commitStroke,
     undo,
+    redo,
     clearGrid,
     resizeGrid,
     canUndo,
+    canRedo,
     loadGrid,
     saveGrid,
 } from "./lib.js";
@@ -27,6 +29,7 @@ const DISPLAY_SIZE = 600; // CSS px, matching the old .grid box
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 const undoButton = document.getElementById("undo");
+const redoButton = document.getElementById("redo");
 
 let grid = loadGrid(window.localStorage, DEFAULT_SIZE);
 let chosenColor = "black";
@@ -77,6 +80,7 @@ function afterChange() {
     render();
     saveGrid(window.localStorage, grid);
     undoButton.disabled = !canUndo(grid);
+    redoButton.disabled = !canRedo(grid);
     // The grid size can change on undo (undoing a resize, issue #11), so keep
     // the size label and slider in sync with the model — not only on resize.
     gridSizeText.textContent = `${grid.size}x${grid.size}`;
@@ -111,7 +115,7 @@ function extendStroke(cell) {
         const prev = grid.cells[index];
         if (prev !== chosenColor && !strokeTouched.has(index)) {
             grid.cells[index] = chosenColor;
-            strokeChanges.push({ index, prev });
+            strokeChanges.push({ index, prev, next: chosenColor });
             strokeTouched.add(index);
         }
     }
@@ -126,7 +130,7 @@ canvas.addEventListener("pointerdown", (e) => {
     strokeChanges = [];
     strokeTouched = new Set();
     if (grid.cells[cell] !== chosenColor) {
-        strokeChanges.push({ index: cell, prev: grid.cells[cell] });
+        strokeChanges.push({ index: cell, prev: grid.cells[cell], next: chosenColor });
         strokeTouched.add(cell);
         grid.cells[cell] = chosenColor;
     }
@@ -150,6 +154,7 @@ function endStroke() {
     strokeTouched = new Set();
     saveGrid(window.localStorage, grid);
     undoButton.disabled = !canUndo(grid);
+    redoButton.disabled = !canRedo(grid);
 }
 
 for (const stop of ["pointerup", "pointercancel", "pointerleave"]) {
@@ -188,7 +193,17 @@ canvas.addEventListener("keydown", function (event) {
         case "Z":
             if (event.ctrlKey || event.metaKey) {
                 event.preventDefault();
-                doUndo();
+                // Ctrl/Cmd+Shift+Z is the conventional redo chord on macOS;
+                // plain Ctrl+Z stays undo. (issue #21)
+                doRedoOrUndo(event);
+                return;
+            }
+            break;
+        case "y":
+        case "Y":
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                doRedo();
                 return;
             }
             break;
@@ -245,6 +260,18 @@ function doUndo() {
     afterChange();
 }
 
+function doRedo() {
+    redo(grid);
+    afterChange();
+}
+
+// Plain Ctrl+Z undoes; the Shift modifier turns it into redo (the macOS
+// convention). Ctrl+Y is the Windows convention and is handled separately.
+function doRedoOrUndo(event) {
+    if (event.shiftKey) doRedo();
+    else doUndo();
+}
+
 // --- Save as PNG (issue #9) ---
 //
 // Rasterise the model to an offscreen canvas (one fillRect per cell, scaled
@@ -281,6 +308,7 @@ function exportPng() {
 
 document.getElementById("clear").addEventListener("click", doClear);
 undoButton.addEventListener("click", doUndo);
+redoButton.addEventListener("click", doRedo);
 document.getElementById("export").addEventListener("click", exportPng);
 
 // --- grid size ---
@@ -311,3 +339,4 @@ modifyGrid.addEventListener("change", function () {
 setupCanvas();
 render();
 undoButton.disabled = !canUndo(grid);
+redoButton.disabled = !canRedo(grid);

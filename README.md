@@ -2,8 +2,8 @@
 
 A browser version of an [etch-a-sketch](https://en.wikipedia.org/wiki/Etch_A_Sketch):
 drag over a board to paint, switch between a black pen, an eraser and a
-random-colour pen, resize the board from 1×1 up to 150×150, undo strokes,
-clear the board, and save your drawing as a PNG.
+random-colour pen, resize the board from 1×1 up to 150×150, undo and redo
+strokes, clear the board, and save your drawing as a PNG.
 
 No build step — it's plain HTML/CSS/JS with a tiny `@playwright/test`
 dev-dependency for the browser smoke tests.
@@ -28,6 +28,7 @@ python3 -m http.server 8000
 | Focus the board, then **← ↑ → ↓** | Move the keyboard cursor (wraps at the edges) |
 | **Space** / **Enter** | Paint the cell the cursor is on |
 | **Ctrl/Cmd+Z** or the **Undo** button | Undo the last stroke (a whole drag is one stroke) |
+| **Ctrl+Y**, **Ctrl/Cmd+Shift+Z** or the **Redo** button | Redo the last undone stroke (a new stroke clears the redo stack) |
 | **Clear** button | Erase the whole board (one undo level) |
 | **Save PNG** button | Download the drawing as `etch-a-sketch-<size>x<size>.png` |
 | Black pen button | Black strokes |
@@ -46,7 +47,7 @@ reload — at any grid size.
 | `index.html` | Page structure, the `<canvas id="board">` and toolbar |
 | `style.css` | Styling, including the canvas and action buttons |
 | `reset.css` | CSS reset |
-| `lib.js` | Pure logic: the undoable grid model, Bresenham line, persistence, grid-size validation, colour picker, tool table. No DOM. |
+| `lib.js` | Pure logic: the undoable/redoable grid model, Bresenham line, persistence, grid-size validation, colour picker, tool table. No DOM. |
 | `script.js` | Rendering + input: the `<canvas>` renderer, pointer/keyboard drawing, toolbar, Clear/Undo/Save-PNG, resize. Imports `lib.js`. |
 | `lib.test.js` | Unit tests for the original `lib.js` helpers |
 | `grid.test.js` | Unit tests for the grid model (paint, line, undo, clear, resize, persistence) |

@@ -331,3 +331,99 @@ test('the Colour tool paints with the picked custom colour (#12)', async ({ page
   await page.click('#undo');
   expect(await paintedPixels(page)).toBe(0);
 });
+
+// --- redo (issue #21) ------------------------------------------------------
+
+test('loads with a disabled Redo button', async ({ page }) => {
+  await expect(page.locator('#redo')).toBeDisabled();
+});
+
+test('Redo button restores an undone stroke, then disables again', async ({ page }) => {
+  const box = await page.locator('#board').boundingBox();
+  const cy = box.y + box.height / 2;
+
+  await page.mouse.move(box.x + box.width * 0.3, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, cy, { steps: 5 });
+  await page.mouse.up();
+  const painted = await paintedPixels(page);
+  expect(painted).toBeGreaterThan(500);
+
+  await page.click('#undo');
+  expect(await paintedPixels(page)).toBe(0);
+  await expect(page.locator('#redo')).toBeEnabled();
+
+  await page.click('#redo');
+  expect(await paintedPixels(page)).toBe(painted);
+  await expect(page.locator('#redo')).toBeDisabled();
+  await expect(page.locator('#undo')).toBeEnabled();
+});
+
+test('a new stroke clears the redo stack', async ({ page }) => {
+  const box = await page.locator('#board').boundingBox();
+  const cy = box.y + box.height / 2;
+
+  // Stroke, undo, then paint a new dot: redo must be gone.
+  await page.mouse.move(box.x + box.width * 0.2, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.4, cy, { steps: 4 });
+  await page.mouse.up();
+  await page.click('#undo');
+  await expect(page.locator('#redo')).toBeEnabled();
+
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.locator('#redo')).toBeDisabled();
+});
+
+test('Ctrl+Y redoes the last undone stroke', async ({ page }) => {
+  const box = await page.locator('#board').boundingBox();
+  const cy = box.y + box.height / 2;
+
+  await page.mouse.move(box.x + box.width * 0.3, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, cy, { steps: 5 });
+  await page.mouse.up();
+  const painted = await paintedPixels(page);
+  expect(painted).toBeGreaterThan(500);
+
+  // The pointerdown handler preventDefaults, so a mouse stroke never moves
+  // keyboard focus — focus the board explicitly, as a keyboard user would.
+  // Focusing draws a thin keyboard-cursor outline, so the "blank"
+  // assertions use a tolerance (~a few hundred px) instead of 0.
+  await page.locator('#board').focus();
+  await page.keyboard.press('Control+z');
+  const blanked = await paintedPixels(page);
+  expect(blanked).toBeLessThan(400, 'stroke undone; only the cursor outline remains');
+
+  await page.keyboard.press('Control+y');
+  const redone = await paintedPixels(page);
+  expect(redone).toBeGreaterThan(painted - 400, 'redo restores the full stroke');
+});
+
+test('Ctrl+Shift+Z redoes, plain Ctrl+Z still undoes', async ({ page }) => {
+  const box = await page.locator('#board').boundingBox();
+  const cy = box.y + box.height / 2;
+
+  await page.mouse.move(box.x + box.width * 0.3, cy);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, cy, { steps: 5 });
+  await page.mouse.up();
+  const painted = await paintedPixels(page);
+  expect(painted).toBeGreaterThan(500);
+
+  await page.locator('#board').focus();
+  await page.keyboard.press('Control+z');
+  expect(await paintedPixels(page)).toBeLessThan(400);
+  await expect(page.locator('#redo')).toBeEnabled();
+
+  // Ctrl+Shift+Z (macOS convention) redoes.
+  await page.keyboard.press('Control+Shift+KeyZ');
+  expect(await paintedPixels(page)).toBeGreaterThan(painted - 400);
+  await expect(page.locator('#redo')).toBeDisabled();
+
+  // ...and plain Ctrl+Z undoes the same stroke again.
+  await page.keyboard.press('Control+z');
+  expect(await paintedPixels(page)).toBeLessThan(400);
+});

@@ -1,7 +1,7 @@
 body {
     background-color: black;
     color: white; /* Fallback for older browsers */
-    color: rgb(255, 255, 255, 0.88);
+    color: rgb(255 255 255 / 0.88);
     font-family: Georgia, Arial, sans-serif;
 }
 
@@ -29,7 +29,7 @@ body {
 .tool-button {
     border-width: thick;
     border-color: white;
-    border-color: rgb(255, 255, 255, 0.88);
+    border-color: rgb(255 255 255 / 0.88);
     border-style: solid;
     border-radius: 20%;
     height: 100px;
@@ -71,7 +71,7 @@ body {
     width: 44px;
     height: 44px;
     padding: 2px;
-    border: 3px solid rgb(255, 255, 255, 0.88);
+    border: 3px solid rgb(255 255 255 / 0.88);
     border-radius: 8px;
     background: none;
     cursor: pointer;
@@ -115,7 +115,7 @@ body {
 .action-button {
     border-width: thick;
     border-color: white;
-    border-color: rgb(255, 255, 255, 0.88);
+    border-color: rgb(255 255 255 / 0.88);
     border-style: solid;
     border-radius: 8px;
     height: 48px;

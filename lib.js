@@ -97,11 +97,27 @@ export function toolColor(id, customColor) {
 
 // --- Grid model -----------------------------------------------------------
 //
-// The grid is a plain object { size, cells, history } where cells is a flat
-// array of size*size entries. A null entry is a blank (white) cell; painted
-// cells hold a CSS colour string ("black", "white", "hsl(...)"). Keeping the
-// model pure (no DOM, no canvas) makes every rule unit-testable and lets the
-// renderer be swapped (the canvas renderer in script.js is that renderer).
+// The grid is a plain object { size, cells, history, redoStack } where cells
+// is a flat array of size*size entries. A null entry is a blank (white)
+// cell; painted cells hold a CSS colour string ("black", "white",
+// "hsl(...)"). Keeping the model pure (no DOM, no canvas) makes every rule
+// unit-testable and lets the renderer be swapped (the canvas renderer in
+// script.js is that renderer).
+//
+// Undo AND redo (issue #21) live in the model: `history` holds the actions
+// not yet undone, `redoStack` the ones undone (newest last). Each action
+// stores BOTH its inverse and forward data so the same record serves both
+// directions:
+//
+//   { type: "paint",  index, prev, next }
+//   { type: "line",   cells: [{ index, prev, next }, ...] }
+//   { type: "clear",  cells: [...old array...], newSize }
+//   { type: "resize", size, cells: [...old...], newSize, newCells: [...new...] }
+//
+// Any NEW action clears the redo stack (standard editor behaviour): the
+// abandoned branch is gone for good, and it also keeps redo safe after a
+// resize (the redone action's indices would be in the OLD size's index
+// space).
 
 /** Maximum number of undo levels kept per grid. */
 export const MAX_HISTORY = 50;
@@ -110,7 +126,7 @@ export const MAX_HISTORY = 50;
  * Create a fresh blank grid.
  *
  * @param {number} size integer 1..150
- * @returns {{size: number, cells: (string|null)[], history: object[]}}
+ * @returns {{size: number, cells: (string|null)[], history: object[], redoStack: object[]}}
  */
 export function createGrid(size) {
     const { ok, size: resolved } = resolveGridSize(size);
@@ -119,16 +135,33 @@ export function createGrid(size) {
         size: resolved,
         cells: new Array(resolved * resolved).fill(null),
         history: [],
+        redoStack: [],
     };
 }
 
 /**
- * Paint one cell, recording the change for undo.
+ * Record a new action on the undo stack, dropping the redo stack (a new
+ * action abandons the undone branch, and it may also leave a resized grid's
+ * old index space — see the model notes above). Evicts the oldest undo level
+ * past MAX_HISTORY.
  *
- * The undo log stores single-cell inverse actions ({index, prev}) so 50 levels
- * cost a handful of records no matter the grid size; a clear stores the whole
- * previous array (a reference, not a copy — the array is never mutated in
- * place after a clear).
+ * @returns {object} the same action object, so callers can use the return
+ *   value as the record they just made.
+ */
+function recordAction(grid, action) {
+    grid.redoStack.length = 0;
+    grid.history.push(action);
+    if (grid.history.length > MAX_HISTORY) grid.history.shift();
+    return action;
+}
+
+/**
+ * Paint one cell, recording the change for undo and redo.
+ *
+ * The undo log stores single-cell inverse actions ({index, prev, next}) so 50
+ * levels cost a handful of records no matter the grid size; a clear stores
+ * the whole previous array (a reference, not a copy — the array is never
+ * mutated in place after a clear).
  *
  * @returns {boolean} true if the cell actually changed (painting a cell the
  *   same colour is a no-op, so scrubbing the mouse doesn't eat undo history)
@@ -136,8 +169,7 @@ export function createGrid(size) {
 export function paintCell(grid, index, color) {
     const prev = grid.cells[index];
     if (prev === color) return false;
-    grid.history.push({ type: "paint", index, prev });
-    if (grid.history.length > MAX_HISTORY) grid.history.shift();
+    recordAction(grid, { type: "paint", index, prev, next: color });
     grid.cells[index] = color;
     return true;
 }
@@ -179,8 +211,10 @@ export function lineCells(size, from, to) {
  * Set `indices` on the grid to `color`, touching each cell at most once
  * (later occurrences overwrite earlier ones).
  *
- * @returns {Array<{index: number, prev: string|null}>} only the cells that
- *   actually changed — painting a cell the same colour records nothing
+ * @returns {Array<{index: number, prev: string|null, next: string}>} only the
+ *   cells that actually changed — painting a cell the same colour records
+ *   nothing. `next` is always `color`; storing it keeps every action record
+ *   bidirectional (undo AND redo, issue #21).
  */
 export function applyPaint(grid, indices, color) {
     const touched = new Map();
@@ -191,7 +225,7 @@ export function applyPaint(grid, indices, color) {
     for (const [index, prev] of touched) {
         if (prev !== color) {
             grid.cells[index] = color;
-            changed.push({ index, prev });
+            changed.push({ index, prev, next: color });
         }
     }
     return changed;
@@ -203,13 +237,12 @@ export function applyPaint(grid, indices, color) {
  * touched along the way.
  *
  * @param {object} grid
- * @param {Array<{index: number, prev: string|null}>} changes
+ * @param {Array<{index: number, prev: string|null, next: string}>} changes
  * @returns {number} how many cells the stroke covers (0 when nothing to do)
  */
 export function commitStroke(grid, changes) {
     if (changes.length === 0) return 0;
-    grid.history.push({ type: "line", cells: changes });
-    if (grid.history.length > MAX_HISTORY) grid.history.shift();
+    recordAction(grid, { type: "line", cells: changes });
     return changes.length;
 }
 
@@ -229,38 +262,81 @@ export function paintLine(grid, from, to, color) {
 }
 
 /**
+ * Apply one bidirectional action record to the grid (no stack bookkeeping).
+ *
+ * Whole-array actions (clear, resize) are copied on apply: the stored array
+ * may be the SAME array the grid is currently using (undoing a clear hands
+ * the grid the array the clear action recorded), so sharing it with the
+ * record would let a later undo/redo mutate the other stack's data.
+ *
+ * @param {object} grid
+ * @param {object} action one of the record shapes in the model notes above
+ * @param {"inverse"|"forward"} dir
+ */
+function applyAction(grid, action, dir) {
+    if (action.type === "clear") {
+        grid.cells = dir === "inverse" ? action.cells.slice() : new Array(action.newSize).fill(null);
+    } else if (action.type === "line") {
+        for (const c of action.cells) grid.cells[c.index] = dir === "inverse" ? c.prev : c.next;
+    } else if (action.type === "resize") {
+        grid.size = dir === "inverse" ? action.size : action.newSize;
+        grid.cells = dir === "inverse" ? action.cells.slice() : action.newCells.slice();
+    } else { // "paint"
+        grid.cells[action.index] = dir === "inverse" ? action.prev : action.next;
+    }
+}
+
+/**
  * Undo the last change (paint, drag, clear or resize).
  *
  * A resize restores BOTH the previous size and the previous cells, because a
  * resampled grid has a different dimension than the one it undoes (issue #11).
+ * The undone action moves to the redo stack (issue #21), so it can be
+ * redone; any newer action clears that stack.
  *
  * @returns {boolean} false when the history is empty
  */
 export function undo(grid) {
     const action = grid.history.pop();
     if (!action) return false;
-    if (action.type === "clear") {
-        grid.cells = action.cells;
-    } else if (action.type === "line") {
-        for (const c of action.cells) grid.cells[c.index] = c.prev;
-    } else if (action.type === "resize") {
-        grid.size = action.size;
-        grid.cells = action.cells;
-    } else {
-        grid.cells[action.index] = action.prev;
-    }
+    applyAction(grid, action, "inverse");
+    grid.redoStack.push(action);
     return true;
 }
 
 /**
- * Blank the whole grid (one undo level).
+ * Redo the most recently undone change (issue #21).
+ *
+ * The redone action moves back onto the undo stack, so it can be undone
+ * again; undoing again afterwards clears the (now shorter) redo stack.
+ *
+ * @returns {boolean} false when the redo stack is empty
+ */
+export function redo(grid) {
+    const action = grid.redoStack.pop();
+    if (!action) return false;
+    applyAction(grid, action, "forward");
+    grid.history.push(action);
+    return true;
+}
+
+/** @returns {boolean} whether there is at least one redo level available */
+export function canRedo(grid) {
+    return grid.redoStack.length > 0;
+}
+
+/**
+ * Blank the whole grid (one undo level, redoable).
  * @returns {number} how many cells were actually blanked
  */
 export function clearGrid(grid) {
     const painted = grid.cells.reduce((n, c) => n + (c === null ? 0 : 1), 0);
     if (painted === 0) return 0;
-    grid.history.push({ type: "clear", cells: grid.cells });
-    if (grid.history.length > MAX_HISTORY) grid.history.shift();
+    recordAction(grid, {
+        type: "clear",
+        cells: grid.cells,
+        newSize: grid.cells.length,
+    });
     grid.cells = new Array(grid.cells.length).fill(null);
     return painted;
 }
@@ -274,6 +350,10 @@ export function clearGrid(grid) {
  * previous drawing — including cells a shrink dropped. The old grid's existing
  * undo history is carried over, so a resize never wipes undo levels. Resizing
  * to the same size is a pure no-op (same cells, same history, no new level).
+ *
+ * The record is bidirectional (issue #21): it stores the pre-resize grid
+ * (`size` + `cells`) AND the post-resize grid (`newSize` + `newCells`), so
+ * the resize can be undone and redone.
  */
 export function resizeGrid(grid, newSize) {
     const { ok, size } = resolveGridSize(newSize);
@@ -288,9 +368,18 @@ export function resizeGrid(grid, newSize) {
         }
     }
     if (size !== old.size) {
-        // Carry the old undo levels over, then record the pre-resize grid.
+        // Carry the old undo levels over (a fresh redo stack — the branch is
+        // abandoned, which also keeps redo's index space consistent), then
+        // record the resize as a bidirectional level.
         next.history = old.history.slice();
-        next.history.push({ type: "resize", size: old.size, cells: old.cells });
+        next.redoStack = [];
+        next.history.push({
+            type: "resize",
+            size: old.size,
+            cells: old.cells,
+            newSize: size,
+            newCells: next.cells,
+        });
         if (next.history.length > MAX_HISTORY) next.history.shift();
     }
     return next;
@@ -327,7 +416,7 @@ export function loadGrid(storage, fallbackSize) {
             const cells = parsed && parsed.cells;
             if (ok && Array.isArray(cells) && cells.length === size * size &&
                 cells.every((c) => c === null || (typeof c === "string" && c.length > 0))) {
-                return { size, cells, history: [] };
+                return { size, cells, history: [], redoStack: [] };
             }
         }
     } catch {
